@@ -145,24 +145,6 @@ per-expert dispatch, LRU-paged hot rows. Recipe N is fast but
 untrained (the table is small Gaussian init); continued
 pre-training is a separate work item.
 
-### What's NOT in v0.7.0 (forward-looking)
-
-- **Adaptive LOD routing** (`atf/router.py`) is implemented and unit-tested
-  but is not yet wired into the bridge hot path. The user-facing "auto"
-  dropdown in the Settings panel and the per‑turn tier indicator (⚡
-  instant · 💬 chat · 🧠 reasoning · 🔬 deep) are coming in v0.7.x.
-- **Subject-Relevance LOD** (`atf/subject_router.py`) is Phase 1 only —
-  pure scoring and domain ranking, not yet wired to the engine.
-- **Real Qwen4 QSA + n-gram** — still gated on a public Qwen4 GGUF
-  landing (no public Qwen4 model exists; the only reference
-  checkpoint is 78.9 GB quantized and will not fit on a 16 GB M4).
-  The structural-path tests (`test_qsa_parity.py`,
-  `test_ngram_parity.py`, `test_*_converter_stub.py`) and the
-  real-weight test scaffolding (`test_qsa_real.py`,
-  `test_ngram_real.py`, `_qwen4_helper.py`) continue to pass on
-  synthetic data and activate automatically the moment a usable
-  Qwen4 GGUF becomes available.
-
 ## Bench results
 
 No engine perf regression in v0.7.0. The v0.6.0 defaults remain
