@@ -1,97 +1,116 @@
-# ATF Chat — local inference UI (Electron + MLX)
+# ATF Chat
 
-Desktop chat app for running local `.atf` (GGUF-derived) models on Apple
-Silicon, with an optional OpenAI-compatible API server. See `update.md` for
-the changelog.
+<div align="center">
 
-## Requirements
+[![Latest Release](https://img.shields.io/github/v/release/amgadtewfik/atf-chat?label=v0.9.0&sort=semver)](https://github.com/amgadtewfik/atf-chat/releases/tag/v0.9.0)
+[![License](https://img.shields.io/github/license/amgadtewfik/atf-chat)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-blue)](https://github.com/amgadtewfik/atf-chat)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/node.js-18+-green)](https://nodejs.org/)
 
-- macOS on Apple Silicon, 16 GB RAM, ~10 GB disk (`mlx` is Apple-Silicon-only)
-- Python 3.10+ and [uv](https://docs.astral.sh/uv/) (`brew install uv`)
-- Node.js 18+ (for the Electron shell)
+</div>
 
-## Install from source
+A native desktop chat application for running local `.atf` (GGUF-derived) models on Apple Silicon, with an optional OpenAI-compatible API server. Built with Electron and MLX for optimal performance on macOS.
 
-```sh
+---
+
+## ✨ Features
+
+- **Native macOS app** — Electron shell with MLX-powered inference engine
+- **Local-first** — Run `.atf` models entirely offline on Apple Silicon
+- **OpenAI-compatible API** — Drop-in replacement for OpenAI clients
+- **Model management** — In-app model downloading and switching
+- **Streaming responses** — Real-time token streaming in chat
+- **Markdown rendering** — Full markdown support with syntax highlighting
+- **Context persistence** — SQLite-backed conversation history
+
+---
+
+## 📦 Latest Release
+
+**v0.9.0** — [Download](https://github.com/amgadtewfik/atf-chat/releases/tag/v0.9.0) | [Changelog](https://github.com/amgadtewfik/atf-chat/releases/tag/v0.9.0)
+
+> See [GitHub Releases](https://github.com/amgadtewfik/atf-chat/releases) for full release history.
+
+---
+
+## 🖥 Requirements
+
+| Component | Requirement |
+|-----------|-------------|
+| **OS** | macOS on Apple Silicon (M1/M2/M3/M4) |
+| **RAM** | 16 GB minimum (32 GB recommended for larger models) |
+| **Disk** | ~10 GB for models and dependencies |
+| **Python** | 3.10+ with [uv](https://docs.astral.sh/uv/) (`brew install uv`) |
+| **Node.js** | 18+ (for Electron shell) |
+
+---
+
+## 🚀 Quick Start
+
+### Install from Source
+
+```bash
+# Clone the repository
 git clone https://github.com/amgadtewfik/atf-chat
 cd atf-chat
 
 # 1. Python environment (engine + CLI + OpenAI-compatible server)
 uv venv .venv
 uv pip install -r requirements.txt
-uv pip install -e . --no-deps        # installs the `atf` package itself
+uv pip install -e . --no-deps        # installs the `atf` package
 
 # 2. Electron app
 cd electron
-npm install                          # also runs postinstall (ensure-electron + native rebuild)
-npm run vendor                       # builds renderer/vendor/*.min.js (markdown-it, highlight.js, DOMPurify)
+npm install                          # installs deps + rebuilds native modules
+npm run vendor                       # builds renderer bundles (markdown-it, highlight.js, DOMPurify)
 ```
 
-### Two venvs, one project
+### Runtime Python Environment
 
-`requirements.txt` / `pyproject.toml` set up the *root* Python env above. At
-runtime, though, the Electron app (both `run.sh` and the packaged `.app`)
-actually loads Python from a **separate, self-contained venv at
-`electron/app-venv`** — see `electron/app_venv.cjs` for why. Create it once
-per checkout:
+The Electron app uses a **separate, self-contained venv** at `electron/app-venv` at runtime (both `run.sh` and the packaged `.app`). Create it once per checkout:
 
-```sh
+```bash
 uv venv electron/app-venv
 uv pip install --python electron/app-venv/bin/python -e . --no-deps
 uv pip install --python electron/app-venv/bin/python -r requirements.txt
 ```
 
-(Note: `uv venv` does not install `pip` into the environment by default, so
-`electron/app-venv/bin/pip` won't exist — use `uv pip install --python ...`
-as above, not `electron/app-venv/bin/pip install ...`, unless you create the
-venv with `uv venv electron/app-venv --seed`.)
+> **Note:** `uv venv` does not install `pip` by default. Use `uv pip install --python ...` as shown above, not `electron/app-venv/bin/pip install ...`, unless you create the venv with `uv venv electron/app-venv --seed`.
 
-`run.sh` checks for `electron/app-venv/bin/python3` and prints a similar
-recipe (using the stdlib `venv` module, which does bundle pip) if it's missing.
+### Run the App
 
-## Run
+```bash
+# From repo root
+./run.sh
 
-```sh
-./run.sh          # from the repo root — launches from source
-# or, from electron/:
+# Or from electron/
 npm start
 ```
 
-Models load on demand from the in-app dropdown; drop `.atf` files into the
-configured models folder (see Settings → Model & Context). Model checkpoints
-are hosted at [`amgadtewfik/atf`](https://huggingface.co/amgadtewfik/atf) on
-Hugging Face.
+Models load on demand from the in-app dropdown. Drop `.atf` files into the configured models folder (Settings → Model & Context). Model checkpoints are hosted at [`amgadtewfik/atf`](https://huggingface.co/amgadtewfik/atf) on Hugging Face.
 
-## Development
+---
 
-```sh
+## 🛠 Development
+
+```bash
 cd electron
 npm install
-npm run vendor   # rebuild renderer/vendor bundles (markdown-it, hljs)
-npm start        # run the app from source
+npm run vendor      # rebuild renderer/vendor bundles
+npm start           # run from source
 node ../tests/test_renderer_logic.js   # renderer unit tests
 ```
 
-### Native module build (better-sqlite3)
+### Native Module Build (better-sqlite3)
 
-`electron/.npmrc` pins node-gyp/prebuild-install to build against **Electron's**
-headers (`runtime=electron`), not whatever system Node happens to run `npm
-install`. Without it, a `better-sqlite3` compile can fail outright on a newer
-system Node (V8 removes APIs like `GetPrototype`/`GetIsolate`/
-`PropertyCallbackInfo::This` that the addon still uses) before this project's
-own `postinstall` (`scripts/ensure-electron.mjs` → `scripts/rebuild-native.mjs`)
-ever gets a chance to run. If `npm install` still fails on `better-sqlite3`
-after a clean `rm -rf electron/node_modules`, check that `.npmrc`'s `target`
-still matches a current Electron 33.x version (the `allowScripts` key in
-`package.json` shows the resolved version). Note: npm 10+ prints "Unknown
-project config" warnings for these `.npmrc` keys — that's cosmetic (npm still
-forwards them to node-gyp as env vars); a successful build logs
-`better-sqlite3: binding already matches Electron ABI` from
-`rebuild-native.mjs`.
+`electron/.npmrc` pins `node-gyp`/`prebuild-install` to build against **Electron's** headers (`runtime=electron`), not the system Node. If `npm install` fails on `better-sqlite3` after a clean `rm -rf electron/node_modules`, verify `.npmrc`'s `target` matches a current Electron 33.x version (shown in `package.json`'s `allowScripts` key).
 
-## Production build
+---
 
-```sh
+## 📦 Production Build
+
+```bash
 cd electron
 npm install
 npm run vendor
@@ -99,23 +118,61 @@ npm run dist:dmg     # -> electron/dist/ATF Chat-<arch>.dmg
 # or: npm run dist   # unsigned .app bundle only (--mac dir)
 ```
 
-`electron-builder` bundles `electron/app-venv`, `atf/`, `bridge/`, and
-`pyproject.toml` into the app's `Resources/` (see `build.extraResources` in
-`electron/package.json`) — so **`electron/app-venv` must exist and be up to
-date before building**, or the packaged app ships without a Python backend.
-Native modules (`better-sqlite3`) are rebuilt against Electron's Node ABI
-automatically via `scripts/rebuild-native.mjs`.
+`electron-builder` bundles `electron/app-venv`, `atf/`, `bridge/`, and `pyproject.toml` into the app's `Resources/` (see `build.extraResources` in `electron/package.json`). **`electron/app-venv` must exist and be up to date before building**, or the packaged app ships without a Python backend.
 
-Verify a build before shipping: open the resulting `.app` (or mount the
-`.dmg`), confirm it launches, a model loads from the dropdown, and a chat
-message streams a response.
+### Verify Before Shipping
 
-## OpenAI-compatible server
+1. Open the resulting `.app` (or mount the `.dmg`)
+2. Confirm it launches
+3. Load a model from the dropdown
+4. Send a chat message and verify streaming response
+
+---
+
+## 🌐 OpenAI-Compatible Server
 
 Start/stop from the API tab in-app, or from the CLI:
 
-```sh
+```bash
 python -m atf.server_openai <path-to-model.atf> --port 8000
 ```
 
 Point any OpenAI-compatible client at `http://localhost:8000/v1`.
+
+---
+
+## 📁 Project Structure
+
+```
+atf-chat/
+├── atf/                    # Python inference engine & API server
+│   ├── server_openai.py    # OpenAI-compatible server
+│   └── ...
+├── bridge/                 # Python ↔ Electron IPC bridge
+├── electron/               # Electron application
+│   ├── app-venv/           # Runtime Python environment (created at build/run)
+│   ├── src/                # Renderer & main process code
+│   ├── package.json
+│   └── ...
+├── tests/                  # Unit tests
+├── run.sh                  # Launcher script
+├── requirements.txt        # Python dependencies
+├── pyproject.toml          # Python package config
+└── update.md               # Development log & release history
+```
+
+---
+
+## 🔗 Resources
+
+- **Models:** [amgadtewfik/atf](https://huggingface.co/amgadtewfik/atf) on Hugging Face
+- **Issues:** [GitHub Issues](https://github.com/amgadtewfik/atf-chat/issues)
+- **Releases:** [GitHub Releases](https://github.com/amgadtewfik/atf-chat/releases)
+- **Changelog:** [GitHub Releases](https://github.com/amgadtewfik/atf-chat/releases)
+
+---
+
+## 📄 License
+
+[MIT License](LICENSE) — see LICENSE file for details.
+
