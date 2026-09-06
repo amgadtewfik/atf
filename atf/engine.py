@@ -990,6 +990,10 @@ class Engine:
             if lcp >= 64 and lcp < len(ids):
                 for b_, c in old_kv.items():
                     c.n = min(c.n, lcp)
+                    # gamma/v7: if using SSD KV cache, also truncate the underlying
+                    # PagedKV.n so that keys()/values() return the correct length.
+                    if c.is_ssd and c._paged is not None:
+                        c._paged.n = min(c._paged.n, lcp)
                     kv_caches[b_] = c
                 gdn_states = old_gdn
                 start = lcp
@@ -999,6 +1003,15 @@ class Engine:
             else:
                 _vlog(1, f"generate.lcp SKIP lcp={lcp} (<64 or ==len(ids)); "
                         f"full prefill of {len(ids)} tokens")
+                # A rejected prefix is not usable for this request, but
+                # retaining it keeps the previous turn's KV/GDN arrays alive
+                # while the new prompt is prefilling. On long second turns
+                # that stale cache pushes Metal into a GPU wait at final
+                # logits evaluation. Drop every Python reference now so the
+                # allocator can reclaim it before the fresh prefill.
+                self._pcache = None
+                pcache = None
+                old_ids = old_kv = old_gdn = None
         elif _kv_ssd_disk_reuse is not None:
             # gamma/v7 persistence: no in-memory _pcache (fresh process) but
             # a validated on-disk session matched this exact prefix. The
@@ -1154,7 +1167,10 @@ class Engine:
         _vlog(2, f"generate.prefill.forward_done mem={gpu_mem_line()}")
         console.print(f"  [cyan][step] prefill forward returned, "
                       f"evaluating logits..., mem={gpu_mem_line()}[/cyan]")
-        mx.eval(logits)
+        # _forward_prefill already evaluates the final LM-head logits before
+        # emitting 100% progress. A second sync here can re-submit the large
+        # lazy graph on MLX/Metal and stall long second-turn requests.
+        _sys.stderr.write(f"[DEBUG] logits already evaluated shape={logits.shape if hasattr(logits, 'shape') else '?'}\n"); _sys.stderr.flush()
         console.print(f"  [cyan][step] logits evaluated OK, mem={gpu_mem_line()}[/cyan]")
         # Level 4: NaN/Inf check on the post-prefill logits. Catches expert
         # dequant blow-ups that only manifest on long prefill of a MoE.
@@ -1261,7 +1277,10 @@ class Engine:
                                                 config.exact_ffn, prev_token_id=_ptid)
                     fed_ids.append(tid)
                 think_closed = True
+            _debug_s_t0 = time.time()
+            _sys.stderr.write(f"[DEBUG] calling _sample logits.shape={logits.shape if hasattr(logits, 'shape') else '?'} history_len={len(history)}\n"); _sys.stderr.flush()
             nxt = self._sample(logits, config, history)
+            _sys.stderr.write(f"[DEBUG] _sample returned nxt={nxt} in {time.time()-_debug_s_t0:.2f}s\n"); _sys.stderr.flush()
             if nxt == THINK_CLOSE:
                 think_closed = True
             if not think_closed and nxt == THINK_OPEN:
@@ -1281,8 +1300,11 @@ class Engine:
             # i.e. the last token whose residual was actually pushed
             # through the layers.
             _ptid = fed_ids[-1] if fed_ids else 0
+            _debug_ft_t0 = time.time()
+            _sys.stderr.write(f"[DEBUG] calling _forward_token token_id={nxt}\n"); _sys.stderr.flush()
             logits = self._forward_token(nxt, kv_caches, gdn_states,
                                         config.exact_ffn, prev_token_id=_ptid)
+            _sys.stderr.write(f"[DEBUG] _forward_token done in {time.time()-_debug_ft_t0:.2f}s\n"); _sys.stderr.flush()
             fed_ids.append(nxt)
             # Per-step decode timing. At level 3 we log every token; at level
             # 4 we also dump a NaN-check of the post-token logits and the
@@ -1376,6 +1398,7 @@ class Engine:
         preallocated KV buffers carry state across chunks; GDN state and
         conv buffers live in gdn_states and carry over unchanged.
         """
+        _sys.stderr.write(f"[DEBUG _forward_prefill] START token_ids={len(token_ids)} chunk={chunk}\n"); _sys.stderr.flush()
         logits = None
         n_chunks = (len(token_ids) + max(1, chunk) - 1) // max(1, chunk)
         _vlog(2, f"_forward_prefill.start total_tokens={len(token_ids)} "
@@ -1505,7 +1528,6 @@ class Engine:
                 if os.environ.get("ATF_PREFILL_EVAL_PER_BLOCK"):
                     # Diagnostic: force sync per block so a GPU wedge is
                     # attributed to one block instead of the whole graph.
-                    import sys as _sys
                     print(f"[prefill-eval] block {b}", file=_sys.stderr,
                           flush=True)
                     dump = os.environ.get("ATF_DUMP_BLOCK_X")
@@ -1520,14 +1542,22 @@ class Engine:
                     _nan_check(x, where=f"prefill.b{b}.x")
             x = _rmsnorm(x, self.model.w("output_norm.weight"))
             logits = self.model.mm("output.weight", x[-1])
+            _sys.stderr.write(f"[DEBUG] pre-eval logits\n"); _sys.stderr.flush()
             mx.eval(logits)
+            _sys.stderr.write(f"[DEBUG] post-eval logits\n"); _sys.stderr.flush()
             if progress_cb is not None:
+                if _VERBOSE >= 4:
+                    _sys.stderr.write(f"[DEBUG] pre-progress_cb chunk_idx={chunk_idx} s={s} done={done} total={len(token_ids)}\n"); _sys.stderr.flush()
                 done = min(s + max(1, chunk), len(token_ids))
                 progress_cb(done, len(token_ids))
+                if _VERBOSE >= 4:
+                    _sys.stderr.write(f"[DEBUG] post-progress_cb\n"); _sys.stderr.flush()
                 # v17: visible heartbeat on stdout (status log / API log tail);
                 # carriage return keeps it to one line per prompt.
                 print(f"\r  Prefilling {done}/{len(token_ids)} tokens",
                       end="", flush=True)
+            if _VERBOSE >= 4:
+                _sys.stderr.write(f"[DEBUG] end-of-iteration chunk_idx={chunk_idx}\n"); _sys.stderr.flush()
             _chunk_dt = time.time() - _chunk_t0
             _vstate_add("prefill_chunks", 1)
             _vstate_add("prefill_tokens", len(piece))
@@ -1537,6 +1567,8 @@ class Engine:
                         f"tokens=[{s},{s+len(piece)}) of {len(token_ids)} "
                         f"t={_chunk_dt:.2f}s tok/s={tok_per_s:.1f} "
                         f"mem={gpu_mem_line()}")
+            if _VERBOSE >= 4:
+                _sys.stderr.write(f"[DEBUG] chunk {chunk_idx} complete, moving to next\n"); _sys.stderr.flush()
         except Exception as _prefill_exc:
             _vlog(1, f"_forward_prefill.EXCEPTION "
                     f"err={type(_prefill_exc).__name__}: {_prefill_exc} "
@@ -1544,7 +1576,15 @@ class Engine:
                     f"mem={gpu_mem_line()}")
             raise
         if progress_cb is not None:
+            if _VERBOSE >= 4:
+                _sys.stderr.write(f"[DEBUG] pre-final-newline\n"); _sys.stderr.flush()
             print("", flush=True)   # newline before the final Prefill summary
+            if _VERBOSE >= 4:
+                _sys.stderr.write(f"[DEBUG] post-final-newline\n"); _sys.stderr.flush()
+        if _VERBOSE >= 4:
+            _sys.stderr.write(f"[DEBUG] pre-DONE-log\n"); _sys.stderr.flush()
+            _sys.stderr.write(f"[DEBUG _forward_prefill] DONE, returning logits.shape={logits.shape if hasattr(logits, 'shape') else '?'}\n"); _sys.stderr.flush()
+            _sys.stderr.write(f"[DEBUG] post-DONE-log\n"); _sys.stderr.flush()
         _vlog(2, f"_forward_prefill.done total={time.time()-_prefill_t0:.2f}s "
                 f"n_chunks={n_chunks}")
         # Defensive: if the chunked loop never ran (e.g. the v10 sys_baseline
@@ -1652,7 +1692,12 @@ class Engine:
         testability reason as _snapshot_state."""
         for b, n in kv_n.items():
             if b in kv_caches:
-                kv_caches[b].n = n
+                c = kv_caches[b]
+                c.n = n
+                # gamma/v7: if using SSD KV cache, also restore the underlying
+                # PagedKV.n so that keys()/values() return the correct length.
+                if c.is_ssd and c._paged is not None:
+                    c._paged.n = n
         gdn_states.clear()
         gdn_states.update(gdn_snap)
 
@@ -2001,8 +2046,10 @@ class Engine:
             scores = mx.where(masked[None], mx.array(float("-inf")), scores)
             attn = _softmax(scores, axis=-1)
             ctx = mx.matmul(attn, v_h).transpose(1, 0, 2).reshape(Tq, -1)
-            outs.append(m.qmm(f"{prefix}attn_output.weight",
-                              ctx * mx.sigmoid(gate[qs:qe]).reshape(Tq, -1)))
+            out_chunk = m.qmm(
+                f"{prefix}attn_output.weight",
+                ctx * mx.sigmoid(gate[qs:qe]).reshape(Tq, -1))
+            outs.append(out_chunk)
         return mx.concatenate(outs, axis=0)
 
     # ─── QSA (Qwen Sparse Attention, gamma/v3) ───────────────────────────
@@ -2367,18 +2414,8 @@ class Engine:
             y, state = _gdn_chunk_scan(q, k, v, beta, g, st["state"])
             st["state"] = state
         elif self._compile_gdn_step:
-            # v20: extended from decode-only (T==1) to prefill's multi-token
-            # chunks too. Same per-timestep body as the uncompiled loop
-            # below (state_t depends on state_{t-1}, so this is still O(T)
-            # sequential -- mx.compile does NOT parallelize across t, it
-            # only fuses each step's ~6 elementwise/reduce ops into one
-            # command buffer instead of ~6 separate eager launches). Math
-            # and iteration order are identical to the uncompiled loop;
-            # only dispatch overhead changes. Opt-in via ATF_COMPILE_STEP=1
-            # -- verify with tests/test_perf_parity_compile_step.py
-            # (byte-identical output, temperature=0, before trusting this
-            # for real use) before relying on it, same as the original
-            # decode-only Win A.
+            # The compiled recurrence is mathematically identical to the
+            # eager loop below and reduces dispatch overhead.
             state = st["state"]
             ys = []
             for t in range(T):
@@ -2624,7 +2661,9 @@ class Engine:
         # Decode projections may arrive as [1, vocab] from a backend kernel;
         # sampling always operates on one flat vocabulary row.
         _st0 = time.time()
+        _sys.stderr.write("[DEBUG _sample] converting logits to numpy...\n"); _sys.stderr.flush()
         lg = np.asarray(logits, dtype=np.float64).reshape(-1)
+        _sys.stderr.write(f"[DEBUG _sample] logits numpy conversion done, shape={lg.shape}\n"); _sys.stderr.flush()
         if lg.size <= 1:
             raise ValueError(
                 f"LM head returned invalid logits shape {np.shape(logits)}"

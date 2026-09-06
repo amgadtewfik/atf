@@ -171,6 +171,11 @@ function startBridge() {
     // ATF_VERBOSE=3 by hand first. Override with ATF_VERBOSE=0 to silence,
     // or higher for more detail.
     ATF_VERBOSE: process.env.ATF_VERBOSE || "1",
+    // gamma/v7: half the default prefill chunk size (1024 -> 512) to reduce
+    // the chance of a macOS GPU watchdog timeout during long-context prefill.
+    // A smaller chunk = shorter Metal command buffer = more likely to complete
+    // within the ~30s watchdog window. Override with ATF_PREFILL_CHUNK env.
+    ATF_PREFILL_CHUNK: process.env.ATF_PREFILL_CHUNK || "512",
     PYTHONPATH: (APP_VENV?.sitePackages ? APP_VENV.sitePackages + ":" : "") + PROJECT_ROOT +
       (process.env.PYTHONPATH ? ":" + process.env.PYTHONPATH : ""),
   };
