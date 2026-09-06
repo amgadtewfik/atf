@@ -1,0 +1,21 @@
+# Core runtime dependencies for the ATF engine.
+# This mirrors [project.dependencies] in pyproject.toml — that file remains
+# the canonical spec (used by `pip install -e .` / packaging); this file
+# exists so a plain `uv venv` + `uv pip install -r requirements.txt` works
+# without needing to resolve the local package first.
+#
+# Setup:
+#   uv venv .venv
+#   source .venv/bin/activate          # or: .venv/bin/python / .venv/bin/pip directly
+#   uv pip install -r requirements.txt
+#   uv pip install -e . --no-deps      # installs the `atf` package itself (editable)
+#
+# Requires macOS on Apple Silicon (mlx is Apple-Silicon-only) and Python 3.10+.
+
+numpy>=1.24
+gguf>=0.10
+click>=8.0
+rich>=13.0
+mlx>=0.21
+transformers>=4.51
+gigatoken==0.10.0
