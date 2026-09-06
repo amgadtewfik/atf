@@ -2,9 +2,9 @@
 
 <div align="center">
 
-[![Latest Release](https://img.shields.io/github/v/release/amgadtewfik/atf-chat?label=v0.9.0&sort=semver)](https://github.com/amgadtewfik/atf-chat/releases/tag/v0.9.0)
-[![License](https://img.shields.io/github/license/amgadtewfik/atf-chat)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-blue)](https://github.com/amgadtewfik/atf-chat)
+[![Latest Release](https://img.shields.io/github/v/release/amgadtewfik/atf?label=v0.9.0&sort=semver)](https://github.com/amgadtewfik/atf/releases/tag/v0.9.0)
+[![License](https://img.shields.io/github/license/amgadtewfik/atf)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-blue)](https://github.com/amgadtewfik/atf)
 [![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green)](https://nodejs.org/)
 
@@ -28,9 +28,9 @@ A native desktop chat application for running local `.atf` (GGUF-derived) models
 
 ## 📦 Latest Release
 
-**v0.9.0** — [Download](https://github.com/amgadtewfik/atf-chat/releases/tag/v0.9.0) | [Changelog](https://github.com/amgadtewfik/atf-chat/releases/tag/v0.9.0)
+**v0.9.0** — [Download](https://github.com/amgadtewfik/atf/releases/tag/v0.9.0) | [Changelog](https://github.com/amgadtewfik/atf/releases/tag/v0.9.0)
 
-> See [GitHub Releases](https://github.com/amgadtewfik/atf-chat/releases) for full release history.
+> See [GitHub Releases](https://github.com/amgadtewfik/atf/releases) for full release history.
 
 ---
 
@@ -52,8 +52,8 @@ A native desktop chat application for running local `.atf` (GGUF-derived) models
 
 ```bash
 # Clone the repository
-git clone https://github.com/amgadtewfik/atf-chat
-cd atf-chat
+git clone https://github.com/amgadtewfik/atf
+cd atf
 
 # 1. Python environment (engine + CLI + OpenAI-compatible server)
 uv venv .venv
@@ -144,7 +144,7 @@ Point any OpenAI-compatible client at `http://localhost:8000/v1`.
 ## 📁 Project Structure
 
 ```
-atf-chat/
+atf/
 ├── atf/                    # Python inference engine & API server
 │   ├── server_openai.py    # OpenAI-compatible server
 │   └── ...
@@ -166,13 +166,12 @@ atf-chat/
 ## 🔗 Resources
 
 - **Models:** [amgadtewfik/atf](https://huggingface.co/amgadtewfik/atf) on Hugging Face
-- **Issues:** [GitHub Issues](https://github.com/amgadtewfik/atf-chat/issues)
-- **Releases:** [GitHub Releases](https://github.com/amgadtewfik/atf-chat/releases)
-- **Changelog:** [GitHub Releases](https://github.com/amgadtewfik/atf-chat/releases)
+- **Issues:** [GitHub Issues](https://github.com/amgadtewfik/atf/issues)
+- **Releases:** [GitHub Releases](https://github.com/amgadtewfik/atf/releases)
+- **Changelog:** [GitHub Releases](https://github.com/amgadtewfik/atf/releases)
 
 ---
 
 ## 📄 License
 
 [MIT License](LICENSE) — see LICENSE file for details.
-
