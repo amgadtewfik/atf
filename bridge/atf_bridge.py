@@ -827,6 +827,10 @@ def main():
             thinking=cfg_thinking,
             mem_log_interval=0,
             max_context=ctx,
+            # gamma/v7: read ATF_PREFILL_CHUNK from env (set by main.cjs).
+            # Smaller chunk = shorter Metal command buffer = less GPU watchdog
+            # timeout risk on long-context prefill. Default 512 (was 1024).
+            prefill_chunk=int(os.environ.get("ATF_PREFILL_CHUNK", "512")),
             # gamma/v7 persistence (ATF_KV_SSD_PERSIST): scopes the on-disk
             # paged-KV cache key to the model actually loaded for this
             # request, so two different models can never collide on the

@@ -30,6 +30,8 @@ import argparse
 import hashlib
 import json
 import logging
+import os
+from pathlib import Path
 import re
 import threading
 import time
@@ -569,7 +571,12 @@ def create_app(models_dirs=None, default_model: str | None = None):
     app = FastAPI(title="ATF OpenAI-compatible server")
     gen_lock = threading.Lock()          # serialize concurrent requests
     # v8: lazy multi-model manager -- nothing is loaded until first use.
-    worker = ModelManager(models_dirs)
+    # argparse supplies --models-dir values as strings, while the registry
+    # operates on Path objects. Normalize here so the documented standalone
+    # server command can actually start with a model directory.
+    worker = ModelManager(
+        [Path(d) if not isinstance(d, Path) else d for d in (models_dirs or [])]
+    )
     _default = default_model
 
     def _build_config(req: dict, messages: list[dict]) -> tuple[GenConfig, str]:
@@ -608,6 +615,7 @@ def create_app(models_dirs=None, default_model: str | None = None):
             exact_ffn=True,
             thinking=thinking,
             mem_log_interval=0,
+            prefill_chunk=int(os.environ.get("ATF_PREFILL_CHUNK", "512")),
             # gamma/v7 persistence (ATF_KV_SSD_PERSIST): best-effort guess at
             # request-build time (before the model is necessarily resolved/
             # loaded for THIS request) -- falls back to whatever is already
@@ -828,6 +836,7 @@ def create_app(models_dirs=None, default_model: str | None = None):
                                          format_openai_tool_calls(
                                              tools_parser.calls)}))
                             final_finish[0] = "tool_calls"
+                        q.put(_SENTINEL)
                 gen_thread = threading.Thread(target=run, daemon=True)
                 gen_thread.start()
                 while True:
