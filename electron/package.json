@@ -1,0 +1,73 @@
+{
+  "name": "atf-chat",
+  "version": "0.8.0",
+  "description": "Professional local inference UI for ATF models",
+  "author": "ATF",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "npm run ensure-electron && node node_modules/electron/cli.js .",
+    "ensure-electron": "node scripts/ensure-electron.mjs",
+    "vendor": "node build-vendor.mjs",
+    "dist": "electron-builder --mac dir",
+    "dist:dmg": "electron-builder --mac dmg",
+    "postinstall": "node scripts/ensure-electron.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dompurify": "^3.4.14",
+    "highlight.js": "^11.12.0",
+    "markdown-it": "^15.0.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  },
+  "build": {
+    "appId": "app.atf.chat",
+    "productName": "ATF Chat",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "renderer/**",
+      "app_venv.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "app-venv",
+        "to": "app-venv"
+      },
+      {
+        "from": "../atf",
+        "to": "app/beta/v6/atf"
+      },
+      {
+        "from": "../bridge",
+        "to": "app/beta/v6/bridge"
+      },
+      {
+        "from": "../pyproject.toml",
+        "to": "app/beta/v6/pyproject.toml"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg"
+      ],
+      "icon": "atf.icns",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "darkModeSupport": true,
+      "artifactName": "${productName}-${arch}.${ext}"
+    }
+  }
+}

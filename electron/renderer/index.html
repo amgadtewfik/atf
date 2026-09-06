@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <!--
+  v19: style-src now allows 'unsafe-inline'. The renderer drives many
+  dynamic states via element.style (progress bars: width: 42%; chat
+  auto-grow: height: 173px; show/hide: display: none/flex, etc.) and
+  precomputing the SHA-256 hash of every literal value at build time is
+  not viable (the values are user-data driven). Default-src remains
+  'self' so scripts, fonts, and connections are still restricted. New
+  style rules should still be added in style.css (or via className,
+  not via element.style) — the table-builder model cells were the last
+  major offender and now use CSS classes.
+-->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>ATF Inference</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="theme-preload.js"></script>
+</head>
+
+<body>
+  <!-- engine-crash banner -->
+  <div id="crash-banner" class="hidden" role="alert">
+    <span id="crash-text">engine process died — restarting…</span>
+  </div>
+
+  <header id="titlebar">
+    <div class="brand">
+      <span class="logo">◈</span>
+      <span class="name">ATF Inference</span>
+      <span id="status" class="status idle" role="status">Idle</span>
+    </div>
+    <div class="controls">
+      <select id="model-select" title="Model (loads on demand)">
+        <option value="">loading models…</option>
+      </select>
+      <button id="unload-btn" class="icon-btn" title="Unload model (free GPU)" aria-label="Unload model" disabled>
+        <!-- eject symbol -->
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m5 14 7-8 7 8z" />
+          <path d="M5 19h14" />
+        </svg>
+      </button>
+      <select id="thinking" title="Reasoning effort">
+        <option value="auto" selected>auto (adaptive)</option>
+        <option value="off">thinking: off</option>
+        <option value="low">low</option>
+        <option value="medium">medium</option>
+        <option value="high">high</option>
+      </select>
+      <button id="theme-btn" class="icon-btn" title="Toggle theme (⇧⌘L)" aria-label="Toggle theme">
+        <svg id="theme-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m4.93 19.07 1.41-1.41" />
+          <path d="m17.66 6.34 1.41-1.41" />
+        </svg>
+        <svg id="theme-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+      <button id="settings-btn" class="icon-btn" title="Settings (⌘,)" aria-label="Open settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path
+            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="workspace">
+    <!-- ── far-left: tab rail ── -->
+    <nav id="tabs">
+      <button class="tab active" data-tab="dashboard" title="Dashboard — live status">
+        <span class="tab-icon">◉</span><span class="tab-label">Dashboard</span>
+      </button>
+      <button class="tab" data-tab="inference" title="Chat with the model">
+        <span class="tab-icon">◈</span><span class="tab-label">Chat</span>
+      </button>
+      <button class="tab" data-tab="models" title="Manage models">
+        <span class="tab-icon">◲</span><span class="tab-label">Models</span>
+      </button>
+      <button class="tab" data-tab="api" title="OpenAI-compatible server">
+        <span class="tab-icon">⇄</span><span class="tab-label">API</span>
+      </button>
+      <button class="tab" data-tab="convert" title="Convert models to ATF">
+        <span class="tab-icon">⟳</span><span class="tab-label">Convert</span>
+      </button>
+    </nav>
+
+    <!-- ── conversations: visible during Inference ── -->
+    <aside id="sidebar">
+      <button id="new-chat" title="New chat (⌘N)">＋ New Chat</button>
+      <nav id="session-list" aria-label="Conversations"></nav>
+      <div class="sidebar-foot">ATF v17 · local</div>
+    </aside>
+
+    <!-- ── center ── -->
+    <section id="left-pane">
+      <!-- tab: dashboard -->
+      <div id="tab-dashboard" class="tab-page active">
+        <div class="api-body">
+          <div id="dash-hero">
+            <div class="hero-orb" aria-hidden="true">
+              <div class="hero-ring"></div>
+              <div class="hero">◈</div>
+            </div>
+            <h1 class="dash-title">ATF <span class="grad">Inference</span></h1>
+            <p id="dash-sub">Local models, private by design. Pick a model above to begin.</p>
+          </div>
+
+          <div id="dash-tiles">
+            <div class="tile" id="tile-model">
+              <label>Model</label><b id="dash-model">—</b>
+              <span id="dash-model-sub">not loaded</span>
+            </div>
+            <div class="tile" id="tile-engine">
+              <label>Engine</label><b id="dash-phase">idle</b>
+              <span id="dash-conn">connecting…</span>
+            </div>
+            <div class="tile" id="tile-speed">
+              <label>Speed</label><b id="dash-tps">—</b>
+              <span id="dash-prefill">no prompt yet</span>
+            </div>
+            <div class="tile" id="tile-gpu">
+              <label>GPU memory</label><b id="dash-gpu">—</b>
+              <span>wired packed weights</span>
+            </div>
+            <div class="tile" id="tile-ctx">
+              <label>Context</label><b id="dash-ctx">0 tok</b>
+              <div class="tile-meter">
+                <div id="dash-ctx-fill"></div>
+              </div>
+            </div>
+            <div class="tile" id="tile-api">
+              <label>API server</label><b id="dash-api">stopped</b>
+              <span id="dash-api-url">http://localhost:8000/v1</span>
+            </div>
+          </div>
+
+          <!-- generation status lives here so long runs never fight the chat -->
+          <div id="status-pane">
+            <div class="sb-row sb-row-main">
+              <span class="sb-item" id="sb-conn">disconnected</span>
+              <span class="sb-item" id="sb-model">model: —</span>
+              <span class="sb-item" id="sb-phase">idle</span>
+              <span class="sb-item sb-right" id="sb-gpu">gpu: —</span>
+            </div>
+            <div class="sb-row sb-row-stats">
+              <span class="sb-stat"><label>tokens</label><b id="sb-tokens">—</b></span>
+              <span class="sb-stat"><label>prompt</label><b id="sb-prefill">—</b></span>
+              <span class="sb-stat"><label>decode</label><b id="sb-decode">—</b></span>
+              <span class="sb-stat"><label>speed</label><b id="sb-tps">—</b></span>
+              <span class="sb-stat"><label>total</label><b id="sb-total">—</b></span>
+              <span class="sb-stat"><label>tier</label><b id="sb-tier">—</b></span>
+              <span class="sb-stat"><label>context</label><b id="sb-ctx">—</b></span>
+            </div>
+            <div class="sb-row sb-header">
+              <label>engine log</label>
+              <button id="copy-log-btn" class="copy-btn" title="Copy log">⎘</button>
+            </div>
+            <pre id="status-log" class="status-log"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- tab: inference -->
+      <div id="tab-inference" class="tab-page">
+        <main id="chat" role="log" aria-live="polite" aria-label="Conversation">
+          <div id="welcome">
+            <div class="hero">◈</div>
+            <h1>ATF Inference</h1>
+            <p>No model loaded — pick one from the dropdown above to begin.</p>
+            <p class="welcome-hint">Models load on demand; everything stays on your machine.</p>
+          </div>
+        </main>
+
+        <!-- engine/model loading overlay lives OUTSIDE #chat so session
+             switches (which clear #chat) can never destroy it -->
+        <div id="loading" class="hidden">
+          <div class="hero">◈</div>
+          <h2>Loading ATF engine</h2>
+          <div class="bar">
+            <div id="bar-fill"></div>
+          </div>
+          <div id="load-label">starting…</div>
+        </div>
+
+        <footer>
+          <div id="composer">
+            <textarea id="input" rows="2" placeholder="Send a message to the model…" autofocus
+              aria-label="Message"></textarea>
+            <button id="stop" title="Stop generation (Esc)" aria-label="Stop">■</button>
+            <button id="send" disabled title="Send (⏎)" aria-label="Send">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+          <div id="meta" aria-hidden="true"></div>
+        </footer>
+
+      </div>
+
+      <!-- tab: models -->
+      <div id="tab-models" class="tab-page">
+        <!-- left pane: model table -->
+        <div id="models-left">
+          <div id="hf-panel">
+            <div id="hf-panel-header">
+              <h2>Download from Hugging Face</h2>
+              <span class="hf-author">huggingface.co/amgadtewfik/atf</span>
+            </div>
+            <div id="hf-search-row">
+              <input type="text" id="hf-query" value="atf" placeholder="Filter (e.g. atf) — leave blank to list all"
+                spellcheck="false" autocomplete="off" />
+              <button id="hf-search-btn">🔍 Search</button>
+            </div>
+            <div id="hf-results"></div>
+            <div id="hf-status"></div>
+          </div>
+
+          <div id="models-header">
+            <h2>Models</h2>
+            <div id="models-buttons">
+              <button id="models-refresh" title="Refresh model list">↻ Refresh</button>
+              <button id="models-delete" class="danger hidden" title="Delete selected model">🗑 Delete</button>
+            </div>
+          </div>
+
+          <div id="models-folder-row">
+            <span class="models-folder-label">Models folder</span>
+            <input type="text" id="models-folder-path" value="(loading…)" readonly spellcheck="false"
+              autocomplete="off" />
+            <button id="models-folder-pick" title="Choose the folder where models reside">📁 Choose Folder…</button>
+          </div>
+
+          <div id="models-container">
+            <table id="models-table" class="models-table">
+              <thead>
+                <tr>
+                  <th class="models-col-checkbox">
+                    <input type="checkbox" id="models-select-all">
+                  </th>
+                  <th class="models-col-name">Name</th>
+                  <th class="models-col-format">Format</th>
+                  <th class="models-col-size">Size</th>
+                  <th class="models-col-modified">Modified</th>
+                  <th class="models-col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="models-tbody">
+                <tr>
+                  <td colspan="6" class="models-loading">Loading models…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="models-status"></div>
+        </div>
+
+        <!-- right pane: model details -->
+        <div id="models-right">
+          <h3>Model Information</h3>
+          <div id="models-detail-content">
+            <div class="models-detail-field">
+              <label>Name</label>
+              <div id="detail-name"></div>
+            </div>
+            <div class="models-detail-field">
+              <label>Format</label>
+              <div id="detail-format"></div>
+            </div>
+            <div class="models-detail-field">
+              <label>Size</label>
+              <div id="detail-size"></div>
+            </div>
+            <div class="models-detail-field">
+              <label>Path</label>
+              <div id="detail-path"></div>
+            </div>
+          </div>
+          <div id="models-detail-loaded">
+            ✓ Currently loaded in the app
+          </div>
+        </div>
+      </div>
+
+      <!-- tab: api -->
+      <div id="tab-api" class="tab-page">
+        <div class="api-body">
+          <h2>OpenAI-compatible server</h2>
+          <p class="api-desc">
+            Exposes ATF at <code>/v1/chat/completions</code> (SSE streaming) so any
+            OpenAI client — ChatBox, LibreChat, editors — can use this model.
+          </p>
+
+          <div class="api-row">
+            <label for="api-port">Port</label>
+            <input type="number" id="api-port" min="1024" max="65535" value="8000" />
+          </div>
+          <div class="api-row">
+            <button id="api-toggle">Start server</button>
+            <span class="api-dot" id="api-dot"></span>
+            <span id="api-state" class="api-state">stopped</span>
+          </div>
+          <div class="api-endpoint-row">
+            <span class="api-endpoint-label">Endpoint</span>
+            <code id="api-url">http://localhost:8000/v1</code>
+          </div>
+          <h3>Server log <button id="copy-api-log-btn" class="copy-btn" title="Copy server log">⎘</button></h3>
+          <pre id="api-log" class="api-log">(server not running)</pre>
+        </div>
+      </div>
+
+      <!-- tab: convert -->
+      <div id="tab-convert" class="tab-page">
+        <div class="api-body">
+          <h2>Convert Model → ATF</h2>
+          <p class="api-desc">
+            Convert a local model checkpoint (GGUF or MLX) into the ATF format this app runs.
+            The converted file lands in your models folder and appears in the
+            model dropdown once the conversion finishes.
+          </p>
+
+          <div class="api-row cv-row">
+            <label class="cv-source">Source
+              <select id="cv-source">
+                <option value="gguf" selected>GGUF file</option>
+                <option value="mlx">MLX model folder</option>
+              </select>
+            </label>
+            <button id="cv-gguf-btn">Choose Model…</button>
+            <code id="cv-gguf-path" class="cv-path">no file selected</code>
+          </div>
+          <div class="api-row cv-row">
+            <button id="cv-out-btn">Save as…</button>
+            <code id="cv-out-path" class="cv-path">—</code>
+          </div>
+
+          <div class="api-row cv-opts hidden" id="cv-mlx-opts">
+            <label for="cv-bits">Target bits
+              <select id="cv-bits">
+                <option value="4" selected>4-bit</option>
+                <option value="6">6-bit</option>
+                <option value="8">8-bit</option>
+              </select>
+            </label>
+            <span class="api-state">MLX sources are converted as dense models — expert options below do not
+              apply.</span>
+          </div>
+
+          <div class="api-row cv-opts" id="cv-gguf-opts">
+            <label for="cv-experts">Experts
+              <input type="number" id="cv-experts" min="1" value="8" />
+            </label>
+            <label for="cv-topk">Top-k
+              <input type="number" id="cv-topk" min="1" value="4" />
+            </label>
+            <label for="cv-storage">Expert storage
+              <select id="cv-storage">
+                <option value="auto" selected>auto</option>
+                <option value="lod1-all">lod1-all (smallest)</option>
+                <option value="lod1">lod1 (4-bit)</option>
+                <option value="dual">dual (INT8 + 4-bit)</option>
+                <option value="lod0">lod0 (legacy v1)</option>
+              </select>
+            </label>
+            <label class="cv-check"><input type="checkbox" id="cv-densefp4" /> Dense FP4</label>
+            <label class="cv-check"><input type="checkbox" id="cv-raw" /> Raw mode</label>
+          </div>
+
+          <div class="api-row">
+            <button id="cv-start" disabled title="Start conversion">Convert</button>
+            <button id="cv-cancel" class="hidden danger" title="Cancel conversion">Cancel</button>
+            <span class="api-dot" id="cv-dot"></span>
+            <span id="cv-state" class="api-state">idle</span>
+          </div>
+
+          <h3>Conversion log</h3>
+          <pre id="cv-log" class="api-log">(no conversion yet)</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── right pane ── -->
+    <aside id="right-pane"> <!-- v18: hidden by default in CSS; shown only while the Inference tab is active -->
+      <div class="panel">
+        <h3>Context</h3>
+        <div class="ctx-ssd-block" id="ctx-ssd-block">
+          <div class="ctx-ssd-head">
+            <span class="ctx-ssd-title">
+              <span class="ctx-ssd-dot" id="ctx-ssd-dot" aria-hidden="true"></span>
+              Runtime cache
+            </span>
+            <button id="ctx-ssd-clear" class="ctx-ssd-clear" type="button"
+              title="Delete all .kvmm files in the paged SSD KV cache">
+              Clear cache
+            </button>
+          </div>
+          <div class="ctx-ssd-rows">
+            <div class="ctx-ssd-row">
+              <span class="ctx-ssd-key">Cache files</span>
+              <span class="ctx-ssd-val" id="ctx-ssd-files">—</span>
+            </div>
+            <div class="ctx-ssd-row">
+              <span class="ctx-ssd-key">Total size</span>
+              <span class="ctx-ssd-val" id="ctx-ssd-used">0.00 GiB</span>
+            </div>
+          </div>
+        </div>
+        <label class="slider slider-col">
+          <span>max length</span>
+          <input type="range" id="ctx" min="512" max="262144" step="512" value="65536" />
+          <span id="ctx-val">65536</span>
+        </label>
+        <div class="ctx-stats">
+          <div class="ctx-stat"><span>this session</span><b id="ctx-used">0 tok</b></div>
+          <div class="meter">
+            <div id="ctx-meter-fill"></div>
+          </div>
+          <div class="ctx-note" id="ctx-note">
+            Older turns outside the window are dropped newest-first; nothing leaves your machine.
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Generation</h3>
+        <label class="slider slider-col">
+          <span>temperature</span>
+          <input type="range" id="inference-temp" min="0" max="1.5" step="0.05" value="0" />
+          <span id="inference-temp-val">0.00</span>
+        </label>
+      </div>
+      <div class="panel" id="tier-panel">
+        <h3>Adaptive tier</h3>
+        <div id="tier-info" class="tier-info">—</div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- settings modal -->
+  <div id="settings-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"
+    aria-labelledby="settings-title">
+    <div class="modal modal-settings">
+      <div class="modal-head">
+        <div class="modal-head-title">
+          <span class="modal-head-icon" aria-hidden="true">⚙</span>
+          <h2 id="settings-title">Settings</h2>
+        </div>
+        <button id="settings-close" class="copy-btn" title="Close (Esc)" aria-label="Close settings">✕</button>
+      </div>
+      <div class="modal-body modal-body-settings">
+        <!-- Sidebar nav -->
+        <nav id="settings-nav" aria-label="Settings sections">
+          <button class="settings-nav-item active" data-section="appearance">
+            <span class="settings-nav-icon">◐</span>Appearance
+          </button>
+          <button class="settings-nav-item" data-section="chat">
+            <span class="settings-nav-icon">◈</span>Chat &amp; Generation
+          </button>
+          <button class="settings-nav-item" data-section="model">
+            <span class="settings-nav-icon">◇</span>Model &amp; Context
+          </button>
+          <button class="settings-nav-item" data-section="shortcuts">
+            <span class="settings-nav-icon">⌘</span>Shortcuts
+          </button>
+          <button class="settings-nav-item" data-section="advanced">
+            <span class="settings-nav-icon">⚡</span>Advanced
+          </button>
+        </nav>
+
+        <!-- Scrollable content -->
+        <div class="settings-content">
+
+          <!-- ── Appearance ── -->
+          <section class="settings-section active" data-section="appearance">
+            <h3 class="settings-h3">Appearance</h3>
+            <p class="settings-desc">Tune how ATF looks on this machine. All changes preview instantly.</p>
+
+            <div class="setting-group">
+              <div class="setting-label">
+                <b>Theme</b>
+                <span class="setting-hint">Choose light, dark, or follow the system.</span>
+              </div>
+              <div class="theme-picker" role="radiogroup" aria-label="Theme">
+                <label class="theme-option">
+                  <input type="radio" name="theme-mode" value="light" />
+                  <span class="theme-swatch theme-swatch-light" aria-hidden="true">
+                    <span class="swatch-bg"></span>
+                    <span class="swatch-card"></span>
+                    <span class="swatch-accent"></span>
+                  </span>
+                  <span class="theme-label">Light</span>
+                </label>
+                <label class="theme-option">
+                  <input type="radio" name="theme-mode" value="dark" checked />
+                  <span class="theme-swatch theme-swatch-dark" aria-hidden="true">
+                    <span class="swatch-bg"></span>
+                    <span class="swatch-card"></span>
+                    <span class="swatch-accent"></span>
+                  </span>
+                  <span class="theme-label">Dark</span>
+                </label>
+                <label class="theme-option">
+                  <input type="radio" name="theme-mode" value="auto" />
+                  <span class="theme-swatch theme-swatch-auto" aria-hidden="true">
+                    <span class="swatch-bg swatch-half"></span>
+                    <span class="swatch-card"></span>
+                    <span class="swatch-accent"></span>
+                  </span>
+                  <span class="theme-label">Auto</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <div class="setting-label">
+                <b>Accent color</b>
+                <span class="setting-hint">A subtle hint of color across the UI.</span>
+              </div>
+              <div class="accent-picker" role="radiogroup" aria-label="Accent color">
+                <label class="accent-swatch" style="--swatch:#6c8cff" data-accent="indigo">
+                  <input type="radio" name="accent" value="indigo" checked />
+                  <span></span>
+                </label>
+                <label class="accent-swatch" style="--swatch:#7d8df3" data-accent="violet">
+                  <input type="radio" name="accent" value="violet" />
+                  <span></span>
+                </label>
+                <label class="accent-swatch" style="--swatch:#5fb5c2" data-accent="teal">
+                  <input type="radio" name="accent" value="teal" />
+                  <span></span>
+                </label>
+                <label class="accent-swatch" style="--swatch:#67b97a" data-accent="green">
+                  <input type="radio" name="accent" value="green" />
+                  <span></span>
+                </label>
+                <label class="accent-swatch" style="--swatch:#d68a5c" data-accent="amber">
+                  <input type="radio" name="accent" value="amber" />
+                  <span></span>
+                </label>
+                <label class="accent-swatch" style="--swatch:#d36e87" data-accent="rose">
+                  <input type="radio" name="accent" value="rose" />
+                  <span></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <div class="setting-label">
+                <b>Text size</b>
+                <span class="setting-hint">Adjust overall font size for readability.</span>
+              </div>
+              <div class="segmented" role="radiogroup" aria-label="Text size">
+                <label><input type="radio" name="fontSize" value="compact" /><span>Compact</span></label>
+                <label><input type="radio" name="fontSize" value="comfortable"
+                    checked /><span>Comfortable</span></label>
+                <label><input type="radio" name="fontSize" value="large" /><span>Large</span></label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <div class="setting-label">
+                <b>Layout density</b>
+                <span class="setting-hint">Spacing around chat messages.</span>
+              </div>
+              <div class="segmented" role="radiogroup" aria-label="Layout density">
+                <label><input type="radio" name="density" value="compact" /><span>Compact</span></label>
+                <label><input type="radio" name="density" value="comfortable" checked /><span>Comfortable</span></label>
+                <label><input type="radio" name="density" value="spacious" /><span>Spacious</span></label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-animations" checked />
+                <span>Enable subtle animations</span>
+                <span class="setting-hint">Pulsing status, shimmering bars, hover lifts. Disable for a calmer UI.</span>
+              </label>
+            </div>
+          </section>
+
+          <!-- ── Chat & Generation ── -->
+          <section class="settings-section" data-section="chat">
+            <h3 class="settings-h3">Chat &amp; Generation</h3>
+            <p class="settings-desc">How the model responds and how the conversation behaves.</p>
+
+            <div class="setting-group">
+              <label class="field">
+                <span>System prompt</span>
+                <textarea id="set-system" rows="3" placeholder="You are a helpful assistant…"></textarea>
+                <span class="setting-hint">Prepended to every conversation as hidden context.</span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <label class="field">
+                <span>Max response tokens</span>
+                <input type="number" id="set-max-tokens" min="64" max="65536" step="64" value="65536" />
+                <span class="setting-hint">Upper bound on tokens the model may emit per turn.</span>
+              </label>
+              <label class="field">
+                <span>Temperature</span>
+                <div class="slider-row">
+                  <input type="range" id="set-temp" min="0" max="1.5" step="0.05" value="0" />
+                  <b id="set-temp-val">0.00</b>
+                </div>
+                <span class="setting-hint">Higher = more creative; lower = more deterministic.</span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <label class="field">
+                <span>top_p</span>
+                <input type="number" id="set-top-p" min="0.05" max="1" step="0.05" value="0.9" />
+                <span class="setting-hint">Nucleus sampling cutoff.</span>
+              </label>
+              <label class="field">
+                <span>Repeat penalty</span>
+                <input type="number" id="set-repeat" min="1" max="1.5" step="0.05" value="1.15" />
+                <span class="setting-hint">Discourages the model from repeating itself.</span>
+              </label>
+            </div>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-mirror-think" checked />
+                <span>Mirror live thinking into the right pane</span>
+                <span class="setting-hint">When the model is reasoning, show the scratchpad in the right sidebar.</span>
+              </label>
+            </div>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-show-tokens" checked />
+                <span>Show live tokens/s during streaming</span>
+                <span class="setting-hint">A small live readout next to the phase indicator.</span>
+              </label>
+            </div>
+          </section>
+
+          <!-- ── Model & Context ── -->
+          <section class="settings-section" data-section="model">
+            <h3 class="settings-h3">Model &amp; Context</h3>
+            <p class="settings-desc">Memory budget and where models live on disk.</p>
+
+            <details class="field" id="set-models-dir-group" open>
+              <summary>Models folder</summary>
+              <div class="models-dir-row">
+                <input type="text" id="set-models-dir" placeholder="(loading…)" spellcheck="false" autocomplete="off" />
+                <button id="set-models-dir-pick" type="button" title="Choose folder…">📁</button>
+                <button id="set-models-dir-reveal" type="button" title="Reveal in Finder">🔍</button>
+              </div>
+              <p class="hint">
+                Drop <code>.atf</code> files here, or point this at an existing folder of models.
+                The app re-scans the registry when this changes.
+              </p>
+            </details>
+
+            <details class="field" id="set-kvssd-group" open>
+              <summary>Paged SSD KV cache (long context)</summary>
+              <label class="check">
+                <input type="checkbox" id="set-kvssd-enabled" />
+                <span>Spill cold KV pages to SSD</span>
+                <span class="setting-hint">
+                  Default ON. Keeps the full context alive by paging cold tokens to disk
+                  instead of silently truncating long pastes. Disable to fall back to the
+                  in-RAM flat buffer (faster on tiny chats, truncates on long ones).
+                </span>
+              </label>
+              <div class="models-dir-row" style="margin-top: 8px;">
+                <input type="text" id="set-kvssd-path" spellcheck="false" autocomplete="off"
+                  placeholder="~/.cache/atf/kvpages" />
+                <button id="set-kvssd-path-pick" type="button" title="Choose folder…">📁</button>
+                <button id="set-kvssd-path-reveal" type="button" title="Reveal in Finder">🔍</button>
+              </div>
+              <p class="hint">
+                Where paged KV files live on disk. Same volume as your models is fine
+                (the engine reads them sequentially, ~3 GB/s on this SSD). Files are
+                removed when the session ends.
+              </p>
+              <label class="field" style="margin-top: 10px;">
+                <span>Hot pages on GPU</span>
+                <div class="slider-row">
+                  <input type="range" id="set-kvssd-hot-pages" min="32" max="2048" step="32" value="256" />
+                  <b id="set-kvssd-hot-pages-val">256</b>
+                </div>
+                <span class="setting-hint">
+                  Lower = more SSD traffic, higher = more RAM for KV. 256 pages
+                  ≈ 16k tokens is a good default. Changes take effect on the
+                  next session.
+                </span>
+              </label>
+            </details>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-confirm-unload" />
+                <span>Confirm before unloading a model</span>
+                <span class="setting-hint">Avoids accidental VRAM release.</span>
+              </label>
+            </div>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-auto-resume" />
+                <span>Auto-resume last session on launch</span>
+                <span class="setting-hint">Open the conversation you were last viewing.</span>
+              </label>
+            </div>
+          </section>
+
+          <!-- ── Shortcuts ── -->
+          <section class="settings-section" data-section="shortcuts">
+            <h3 class="settings-h3">Keyboard shortcuts</h3>
+            <p class="settings-desc">A quick reference. These are not editable.</p>
+            <div class="shortcuts-grid">
+              <div class="shortcut"><kbd>⌘</kbd><kbd>N</kbd><span>New chat</span></div>
+              <div class="shortcut"><kbd>⌘</kbd><kbd>K</kbd><span>Clear conversation</span></div>
+              <div class="shortcut"><kbd>⌘</kbd><kbd>,</kbd><span>Open settings</span></div>
+              <div class="shortcut"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>L</kbd><span>Toggle theme</span></div>
+              <div class="shortcut"><kbd>⏎</kbd><span>Send message</span></div>
+              <div class="shortcut"><kbd>⇧</kbd><kbd>⏎</kbd><span>New line</span></div>
+              <div class="shortcut"><kbd>Esc</kbd><span>Stop generation / close modal</span></div>
+              <div class="shortcut"><kbd>⌘</kbd><kbd>1-5</kbd><span>Switch tab</span></div>
+            </div>
+          </section>
+
+          <!-- ── Advanced ── -->
+          <section class="settings-section" data-section="advanced">
+            <h3 class="settings-h3">Advanced</h3>
+            <p class="settings-desc">Power-user controls and housekeeping.</p>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-telemetry" />
+                <span>Allow anonymous usage stats</span>
+                <span class="setting-hint">Helps the ATF team understand which features get used. Never includes
+                  prompts.</span>
+              </label>
+            </div>
+
+            <div class="setting-group">
+              <label class="check">
+                <input type="checkbox" id="set-clear-on-exit" />
+                <span>Clear chat history on quit</span>
+                <span class="setting-hint">Sessions are wiped from this machine when the app closes.</span>
+              </label>
+            </div>
+
+            <div class="setting-group danger-zone">
+              <b>Reset</b>
+              <p class="setting-hint">Restore every setting to its default value. Stored models and sessions stay put.
+              </p>
+              <button id="set-reset" class="danger-btn">Reset all settings…</button>
+            </div>
+          </section>
+
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="modal-foot-hint">Settings are saved automatically.</span>
+        <button id="settings-cancel">Cancel</button>
+        <button id="settings-save" class="primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- toasts -->
+  <div id="toasts" role="status" aria-live="polite"></div>
+
+  <script src="vendor/markdown-it.min.js"></script>
+  <script src="vendor/highlight.min.js"></script>
+  <script src="vendor/purify.min.js"></script>
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
