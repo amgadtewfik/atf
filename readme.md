@@ -2,6 +2,8 @@
 
 Release package for **ATF Chat v0.9.0**.
 
+[View the v0.9.0 release on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.9.0)
+
 ## Download
 
 | File | Platform | Architecture | Size |
