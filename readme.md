@@ -2,13 +2,23 @@
 
 Release package for **ATF Chat v0.9.0**.
 
-[View the v0.9.0 release on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.9.0)
+[View the v0.10.0 release on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.10.0)
 
 ---
 
 ## What's New in v0.9.0
 
-- **Fix for API Calls Stale** - Fix an issue that causes long prompt using AI Harness like Pi Agent to stale the output and hangs the ATF Server
+**Latest v5 model format Support (2026-09-07)**: QSA was promoted from structural-only
+coverage to an exercised prefill-plus-decode path. Its indexer keys now stay
+aligned with the main KV cache across chunks, partial final blocks are
+handled safely, main attention applies RoPE, and sparse attention uses the
+correct per-query gather layout. PLE now performs causal dilated sequence
+convolution and preserves the signed gate. True-MoE routing batches all
+token assignments for each unique selected expert, avoiding repeated gate,
+up, and down projection launches. These changes reduce redundant work and
+prevent previously hidden shape/runtime failures; real Qwen4 performance
+and quality gains remain unmeasured because no compatible production
+checkpoint is available locally.
 
 
 ## Download
