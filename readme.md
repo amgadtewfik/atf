@@ -34,7 +34,6 @@ ceiling); prefill on a fused-GEMM path reaches ~85 tok/s on the 9B (v16).
 | Qwen3.5-9B IQ4_NL | ATF v4-era | ~85 tok/s | 11.5 tok/s | 9.1 GB | Fused-GEMM prefill |
 | Qwen3.8-27B Q2_K_XL | ATF v4-era | not recorded | 5.75 tok/s | 9.8 GB | OOM guard used |
 | Qwen-AgentWorld-35B-A3B | v2 file, v5 reader | 0.1 tok/s | 4.67 tok/s | 11.57 GB | 256 experts, top-k 8 |
-| Synthetic v5 fixture | ATF v5 | not isolated | 402 tok/s | not recorded | Valid generation; not representative of production |
 
 ## Download
 
