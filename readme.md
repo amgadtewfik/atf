@@ -20,6 +20,21 @@ prevent previously hidden shape/runtime failures; real Qwen4 performance
 and quality gains remain unmeasured because no compatible production
 checkpoint is available locally.
 
+## Latest measured performance
+
+**Latest measured performance** (M4 16 GB, greedy seed=42): 9B IQ4_NL
+11.5 tok/s decode; 27B Q2_K_XL 5.75 tok/s decode
+(OOM-guard protected, needs `ATF_OM_SKIP=1` at this context size); 35B-A3B
+MoE 0.02 tok/s (memory-bound at 16 GB — edge of viability, not yet a
+usable configuration). Decode is DRAM-bandwidth-bound (~84 GB/s M4
+ceiling); prefill on a fused-GEMM path reaches ~85 tok/s on the 9B (v16).
+
+| Model | File format | Prefill | Decode | Peak memory | Notes |
+|---|---|---:|---:|---:|---|
+| Qwen3.5-9B IQ4_NL | ATF v4-era | ~85 tok/s | 11.5 tok/s | 9.1 GB | Fused-GEMM prefill |
+| Qwen3.8-27B Q2_K_XL | ATF v4-era | not recorded | 5.75 tok/s | 9.8 GB | OOM guard used |
+| Qwen-AgentWorld-35B-A3B | v2 file, v5 reader | 0.1 tok/s | 4.67 tok/s | 11.57 GB | 256 experts, top-k 8 |
+| Synthetic v5 fixture | ATF v5 | not isolated | 402 tok/s | not recorded | Valid generation; not representative of production |
 
 ## Download
 
