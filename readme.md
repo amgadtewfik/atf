@@ -1,6 +1,6 @@
-# ATF Chat v0.10.0
+# ATF Chat v0.11.0
 
-Release package for **ATF Chat v0.10.0**.
+Release package for **ATF Chat v0.11.0**.
 
 [View the v0.11.0 release on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.11.0)
 
