@@ -1,31 +1,29 @@
-# ATF Chat v0.11.0 - Release Notes
+# ATF Chat v0.12.0 - Release Notes
 
-## 🚀 Overview
-Version `0.11.0` focuses on significant performance optimizations for the Metal kernel, improved timing metrics for inference, and general stability fixes for the Electron wrapper and API streaming.
 
-[View the v0.11.0 release on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.11.0)
+## Overview
+Version 0.12.0 introduces significant foundational work for model quantization and conversion, along with UI refinements and improved build stability. This release also marks a major milestone: the first code contribution made by the ATF model using prime-agent and qwen3.8:27b.
 
-## 🛠 Changes
+## New Features & Enhancements
 
-### ⚡ Performance & Inference
-- **Metal Kernel Optimizations**: Added and improved support for various quantization formats, specifically including `IQ1_M`, significantly enhancing decoding speed.
-- **Prefill & Generation Timing**: Fixed timing issues for the 27B model's prefill and generation stages.
-- **New Metrics**: 
-  - Introduced **TFT (Time for First Token)** tracking.
-  - Added detailed timing for the transition from prefill to the first decode token.
-- **Benchmarking**: Integrated comprehensive benchmark scripts and results to track model performance.
+### 🛠 Multi-tier Conversion CLI Pipeline
+Introduced an experimental CLI pipeline for model quantization and conversion. This includes:
+- **New Conversion Logic**: Enhanced `atf/convert.py` and `atf/format.py` to support multi-tier quantization paths.
+- **Quantization Tools**: New `atf/quantize.py` for fine-grained control over model precision.
+- **Memory Management**: Added `atf/memory_guard.py` to optimize memory usage during large-scale model conversions.
+- **Metal Optimizations**: Updated `atf/gguf_metal.py` to improve GGUF compatibility with Metal kernels.
+- **CLI Integration**: Added new commands to `atf/cli.py` to trigger the conversion pipeline.
 
-### 🐞 Bug Fixes & Stability
-- **API Streaming**: Fixed critical engine and model errors encountered during API streaming.
-- **Model Naming**: Standardized model referencing by removing the trailing `_v5` suffix in favor of version numbering.
-- **Electron Build**: Fixed resource mapping for the packaged app to ensure the Python bridge and venv are correctly located.
+### 🎨 UI & UX Improvements
+- **Temperature Display**: Added a new "temperature pill" in the chat interface to provide real-time visibility into the generation temperature.
+- **Terminology Update**: Renamed `tft` (Time for first Token) to `TTFT` (Time to First Token) for better alignment with industry standards.
+- **Visual Polish**: Minor adjustments to the renderer to improve the layout of metric pills.
 
-### 🎨 User Experience
-- **Status Labels**: Updated the UI to change "Thinking" to **"Processing"** during the prefill stage for better clarity.
-- **UI Polish**: Minor capitalization and labeling adjustments for model states.
+## Bug Fixes & Stability
+- **DMG Build Process**: Streamlined the `electron/build.sh` script and cleaned up `package.json` to ensure more reliable DMG packaging.
+- **Testing**: Expanded the test suite with new coverage for:
+  - Renderer logic (`tests/test_renderer_logic.js`)
+  - Storage tiering systems (`tests/test_storage_tier.py`)
 
-## 📦 Distribution
-This build includes the pre-bundled Python environment and the ATF bridge, optimized for macOS (arm64).
-
----
-*Generated on 2026-09-11*
+## 🚀 Milestone
+- **AI-Driven Development**: This version includes the first successful implementation of a code change generated and applied by the ATF model itself, leveraging the prime-agent framework and the qwen3.8:27b model.
