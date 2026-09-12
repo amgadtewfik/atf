@@ -10,7 +10,7 @@ Version 0.12.0 introduces significant foundational work for model quantization a
 ## New Features & Enhancements
 
 ### 🛠 Multi-tier Conversion CLI Pipeline
-Introduced an experimental CLI pipeline for model quantization and conversion. This includes:
+Introduced a new CLI pipeline for model quantization and conversion. This includes:
 - **New Conversion Logic**: Enhanced `atf/convert.py` and `atf/format.py` to support multi-tier quantization paths.
 - **Quantization Tools**: New `atf/quantize.py` for fine-grained control over model precision.
 - **Memory Management**: Added `atf/memory_guard.py` to optimize memory usage during large-scale model conversions.
