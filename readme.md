@@ -9,6 +9,14 @@ Version 0.12.0 introduces significant foundational work for model quantization a
 
 ## New Features & Enhancements
 
+## 🚀 Key improvements:
+ - Storage-Tier Adaptivity: Added a detailed section on the new ability to
+ switch between Base Tier (chat) and Residual Tier (reasoning).
+ - Metal Performance: Fused Residual GEMV Metal Kernel that is used of SIMD-lane accumulation to avoid intermediate buffers.
+ - Memory Safety: Memory Guard system and its 1.5 GB safety threshold for automatic tier clamping.
+ - Technical Specifics: Included references to the b"DELT" binary section,
+ 16KB-page alignment, and the use of MADV_DONTNEED for efficient memory eviction.
+
 ### 🛠 Multi-tier Conversion CLI Pipeline
 Introduced a new CLI pipeline for model quantization and conversion. This includes:
 - **New Conversion Logic**: Enhanced `atf/convert.py` and `atf/format.py` to support multi-tier quantization paths.
