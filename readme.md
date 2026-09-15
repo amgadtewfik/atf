@@ -36,10 +36,6 @@ Laid the foundation for multi-tier model creation:
   - Renderer logic (`tests/test_renderer_logic.js`)
   - Storage tiering and memory guard systems (`tests/test_storage_tier.py`)
 
-## 🚀 Milestone
-- **AI-Driven Development**: This version includes the first successful implementation of a code change generated and applied by the ATF model itself, leveraging the prime-agent framework and the qwen3.8:27b model.
-# update.md — ATF v13
-
 ## v13 goals (in priority order)
 
 1. **Fix the two stale tests** — `tests/test_inference.py` imports
