@@ -1,9 +1,9 @@
-# ATF Chat 0.12.0 Release Notes
-**Release:** [v0.12.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.12.0)
+# ATF Chat 0.13.0 Release Notes
+**Release:** [v0.13.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.13.0)
 
 
 ## 🚀 Overview
-Version 0.12.0 marks a significant leap in inference flexibility and system intelligence. The headline feature is **Storage-Tier Adaptivity**, which allows the engine to dynamically toggle between a lightweight "Base" quantization for speed and a high-precision "Residual" tier for complex reasoning. This release also integrates a robust system health monitor to prevent memory exhaustion and celebrates a milestone in AI-driven development, featuring the first direct code contributions from the ATF model via prime-agent.
+Version 0.13.0 marks a significant leap in inference flexibility and system intelligence. The headline feature is **Storage-Tier Adaptivity**, which allows the engine to dynamically toggle between a lightweight "Base" quantization for speed and a high-precision "Residual" tier for complex reasoning. This release also integrates a robust system health monitor to prevent memory exhaustion and celebrates a milestone in AI-driven development, featuring the first direct code contributions from the ATF model via prime-agent.
 
 ## New Features & Enhancements
 
@@ -38,3 +38,20 @@ Laid the foundation for multi-tier model creation:
 
 ## 🚀 Milestone
 - **AI-Driven Development**: This version includes the first successful implementation of a code change generated and applied by the ATF model itself, leveraging the prime-agent framework and the qwen3.8:27b model.
+# update.md — ATF v13
+
+## v13 goals (in priority order)
+
+1. **Fix the two stale tests** — `tests/test_inference.py` imports
+   `_rmsnorm_per_head` (removed in v12) and `tests/test_q4nl_conversion.py`
+   expects an IQ4_NL decoder at `gguf_io.DEQUANTIZERS[20]`. Port the IQ4_NL
+   dequantizer and refresh the inference tests so the suite is fully green.
+2. **Speculative decoding with a draft model** — the one big architectural
+   decode lever left. Kernels are at the DRAM floor (~84 GB/s), so further
+   throughput requires verifying multiple tokens per weight pass. Draft
+   candidate: a small Q4/Q8 quant of a same-tokenizer model; verify against
+   the 27B logits, accept-prefix semantics.
+3. **Logit trimming** — 248k vocab lm_head costs ~10 ms/token even via the
+   fast Q4_K kernel. Trim to the active byte-level candidate set where
+   safe (temperature/top-k aware), or defer full-vocab softmax until the
+   sampler needs it.
