@@ -2,7 +2,7 @@
 
 **Release:** [v0.17.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)
 
-This release change the name of the package to ATF.Chat-arm64.dmg to make the update works and fixes the silent-mode 47-second GDN decode stall and introduces the exception-handling coding practice.
+This release changes the name of the package to ATF.Chat-arm64.dmg to make the update works and fixes the silent-mode 47-second GDN decode stall and introduces the exception-handling coding practice.
 
 ## 🚀 Key Highlights
 
