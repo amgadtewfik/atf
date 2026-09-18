@@ -1,43 +1,26 @@
-# ATF Chat v0.15.0 — Release Notes
+# ATF Chat v0.16.0 — Release Notes
 
-**Release:** [v0.15.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.15.0)
+**Release:** [v0.16.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.16.0)
 
-This release focuses on memory stability, prefill performance, and the transition to a more robust multi-backend architecture. The core objective of v0.15.0 is to eliminate "auto-clamp" memory pressure and reduce first-token latency.
+This release fixes the silent-mode 47-second GDN decode stall and introduces the exception-handling coding practice.
 
 ## 🚀 Key Highlights
 
-### 1. Memory & Prefill Optimizations
-- **Increased Prefill Throughput**: `GenConfig.prefill_chunk` increased from **1024 $\to$ 4096**, reducing iteration overhead and improving GPU utilization.
-- **Eager KV Allocation**: Updated `KVCache._ensure` to pre-allocate the full `max_context` capacity upfront. This eliminates synchronous growth stalls during long-context prefills.
-- **Intelligent Memory Guard**:
-    - Added explicit guidance messages in `atf/engine.py` to steer users toward `ATF_KV_SSD=1` and `prefill_chunk` reductions when memory pressure is detected.
-    - **Auto-SSD Tiering**: The engine now automatically enables the SSD-paged KV cache if the GPU-only budget covers less than 50% of the requested context, preventing silent truncation.
+### 1. Fix Silent-Mode GDN Per-Timestep Stall (~43s)
+- **Root cause**: `_gdn_step_compiled()` (the per-token GDN recurrence compiled via `@mx.compile`) had a warm-up that could fail silently when `ATF_VERBOSE == 0`. The broad `except` swallowed errors, `warmed` stayed 0, and the full Metal JIT-trace cost (~43s) was deferred to the first real decode token after the 3.73s TTFT.
+- **Fix** (`atf/engine.py`): warm-up exceptions now always surface via `console.print` (`[red]`), `_vlog(0, ...)`, and `results/stall_debug_20260918.log` (full traceback) regardless of verbosity. Silent mode now completes warm-up correctly.
 
-### 2. Generation & Latency Improvements
-- **Sync-Free Sampling**: Gated the NaN/Inf trap in `_sample` behind diagnostic flags. This removes a costly host/GPU synchronization on every single decode token, significantly reducing per-token latency.
-- **GDN Session-Level Compilation**: Moved Gated DeltaNet (GDN) recurrence compilation from per-block to session-level using packed weight tensors. This removes the $\sim$80-90s first-token stall caused by JIT-tracing.
+### 2. Coding Practice — Never Swallow Exceptions
+- Added to `AGENTS.md`: **Exception Handling** — never swallow exceptions silently; always raise and print with full traceback so stalls and failures are visible regardless of `ATF_VERBOSE` mode.
 
-### 3. Architectural Evolution
-- **Multi-Backend Proxy**: Implemented a backend-agnostic tensor proxy layer (`atf/backend.py`). The engine now supports both **MLX (macOS/Metal)** and **PyTorch (Windows/Linux/CUDA/CPU)** backends, providing a correctness baseline for cross-platform validation.
-- **KV-SSD Orphan Sweep**: Added an automated startup sweep to identify and remove orphaned `.kvmm` and `.meta.npz` files left by abnormal process exits, keeping the runtime cache clean.
-
-### 4. Infrastructure & Tooling
-- **Formal Benchmarking Suite**: Introduced `benchmarks/` covering MoE routing, context scaling, and prefill performance.
-- **Enhanced Test Harness**: Expanded `tests/` to include automated validation for prefill progress and KV SSD persistence.
-- **Optimization Roadmap**: Formalized the long-term plan in `docs/Rec&Impl.md`.
+### 3. Infrastructure & Versioning
+- `pyproject.toml`: `0.21.1`, `electron/package.json`: `0.16.0`.
+- `docs/STATUS.md`: changelog updated; `results/fix_20260918_verbosestall.txt` added.
 
 ## 🛠 Technical Changes
-- **Version**: Bumped to `0.15.0`.
-- **Packaging**: Fixed `electron-builder` configuration to correctly include `update.js` and `electron-updater` in the packaged `.app` bundle.
-- **Env Vars**: 
-    - `ATF_KV_SSD=1`: Recommended for large models/contexts to avoid memory clamping.
-    - `ATF_OM_SKIP=1`: Bypasses the memory guard (use with caution).
-
-## 📝 Summary of Fixes
-- Fixed silent context truncation when GPU KV budget was exceeded.
-- Resolved "module not found" crashes in the packaged Electron app.
-- Fixed stale data accumulation in the SSD KV cache.
-- Eliminated per-token synchronization stalls during sampling.
+- **Version**: `v0.16.0` (Electron) / `0.21.1` (Python package).
+- **Fix**: `atf/engine.py` warm-up block (line ~1377) — exception no longer hidden when `_VERBOSE == 0`.
+- **Practice**: `AGENTS.md` — Exception Handling guideline added.
 
 ---
 *For detailed status and historical changes, please refer to `docs/STATUS.md`.*
