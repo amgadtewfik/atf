@@ -1,16 +1,3 @@
----
-license: apache-2.0
-tags:
-- atf
-- gguf
-- mlx
-- apple-silicon
-- metal
-- quantized
-- local-inference
-- qwen
----
-
 # ATF — Adaptive Tensor Format for Apple Silicon
 
 **Introducing ATF (Adaptive Tensor Format)** — a custom model format and high-throughput inference runtime that converts quantized **GGUF and MLX** checkpoints into a single-file `.atf` container. With hand-written Metal dequantization compute kernels, zero-copy memory-mapped loading, GPU-resident weights, and an adaptive reasoning router, ATF pushes inference directly to Apple Silicon's unified memory bandwidth ceiling with instant load times.
