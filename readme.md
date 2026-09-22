@@ -2,8 +2,6 @@
 
 **Introducing ATF (Adaptive Tensor Format)** — a custom model format and high-throughput inference runtime that converts quantized **GGUF and MLX** checkpoints into a single-file `.atf` container. With hand-written Metal dequantization compute kernels, zero-copy memory-mapped loading, GPU-resident weights, and an adaptive reasoning router, ATF pushes inference directly to Apple Silicon's unified memory bandwidth ceiling with instant load times.
 
-**Latest Release:** [v0.17.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)
-
 ## The Problem ATF Solves
 
 ATF ships hand-optimized Metal compute shaders for less-common or ultra-dense GGUF quantization formats (`IQ1_M`, `IQ4_NL`, `Q6_K`, `UD-Q2_K_XL`), so decode runs at **DRAM-bandwidth-bound speed** on Apple Silicon instead of stalling on dequantization:
@@ -30,7 +28,7 @@ Prompt: fixed filler + question (217 words), `max_tokens=128`, `temperature=0` (
 
 ## Getting Started
 
-1. **[Download ATF Chat (DMG)](https://github.com/amgadtewfik/atf)** — drag to `/Applications`. Python, MLX, and Metal runtimes are fully bundled with zero configuration required.
+1. **[Download ATF Chat (DMG)](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)** — drag to `/Applications`. Python, MLX, and Metal runtimes are fully bundled with zero configuration required.
 2. **Download a Model**: Grab any `.atf` model from the repository into `~/Library/Application Support/atf-chat/models` — or let the app download it directly from the in-app **Models** tab.
 3. **Start Chatting**: Select the model from the dropdown to start chatting.
 
