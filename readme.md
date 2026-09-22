@@ -27,7 +27,7 @@ ATF ships hand-optimized Metal compute shaders for less-common or ultra-dense GG
 
 On Apple Silicon with unified memory, these formats run memory-bandwidth-bound rather than compute- or kernel-bound. (Numbers above are ATF's own measured kernel throughput/error, not a comparison against other runtimes.)
 
-**Release:** [v0.17.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)
+## **Latest Release:** [v0.17.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)
 
 ## Models & Benchmarks
 
