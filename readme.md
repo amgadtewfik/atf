@@ -2,6 +2,8 @@
 
 **Introducing ATF (Adaptive Tensor Format)** — a custom model format and high-throughput inference runtime that converts quantized **GGUF and MLX** checkpoints into a single-file `.atf` container. With hand-written Metal dequantization compute kernels, zero-copy memory-mapped loading, GPU-resident weights, and an adaptive reasoning router, ATF pushes inference directly to Apple Silicon's unified memory bandwidth ceiling with instant load times.
 
+**Latest Release:** [v0.17.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)
+
 ## The Problem ATF Solves
 
 ATF ships hand-optimized Metal compute shaders for less-common or ultra-dense GGUF quantization formats (`IQ1_M`, `IQ4_NL`, `Q6_K`, `UD-Q2_K_XL`), so decode runs at **DRAM-bandwidth-bound speed** on Apple Silicon instead of stalling on dequantization:
@@ -13,8 +15,6 @@ ATF ships hand-optimized Metal compute shaders for less-common or ultra-dense GG
 | **IQ1_M** | Vectorized fast-path Metal shader | Bandwidth-bound | Verified loss-free |
 
 On Apple Silicon with unified memory, these formats run memory-bandwidth-bound rather than compute- or kernel-bound. (Numbers above are ATF's own measured kernel throughput/error, not a comparison against other runtimes.)
-
-## **Latest Release:** [v0.17.0 on GitHub](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)
 
 ## Models & Benchmarks
 
