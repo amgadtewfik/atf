@@ -28,7 +28,7 @@ Prompt: fixed filler + question (217 words), `max_tokens=128`, `temperature=0` (
 
 ## Getting Started
 
-1. **[Download ATF Chat (DMG)](https://github.com/amgadtewfik/atf/releases/tag/v0.17.0)** — drag to `/Applications`. Python, MLX, and Metal runtimes are fully bundled with zero configuration required.
+1. **[Download ATF Chat (DMG)](https://github.com/amgadtewfik/atf/releases/tag/v0.18.0)** — drag to `/Applications`. Python, MLX, and Metal runtimes are fully bundled with zero configuration required.
 2. **Download a Model**: Grab any `.atf` model from the repository into `~/Library/Application Support/atf-chat/models` — or let the app download it directly from the in-app **Models** tab.
 3. **Start Chatting**: Select the model from the dropdown to start chatting.
 
